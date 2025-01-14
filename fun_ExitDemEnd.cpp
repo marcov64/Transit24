@@ -8906,7 +8906,7 @@ CYCLE_SAFE(cur, "Firm")
     v[27] = VS(cur, "CashF");
     v[28] = VS(cur, "KAge"); //is in K, but it is relevant only of there is 1 single K and it is too old
     v[29] = V("CapitalLife");
-    if((v[17]<v[19] && v[27]<0 && VS(cur->hook->up,"NFirmsS")>2)||v[28]>v[29]||v[50]==0)
+    if((VS(cur->hook->up,"NFirmsS")>2) && ((v[17]<v[19] && v[27]<0)||v[28]>v[29]||v[50]==0) )
      {
       if(v[50]==0 && V("ExitFlag")==1)
         INTERACTS(cur, "Exit: DesiredQ", v[50]);
@@ -8935,7 +8935,9 @@ CYCLE_SAFE(cur, "Firm")
           }
         }
        v[4]-=v[27];
-      INCRS(cur->hook->up,"NFirmsS",-1);
+      v[99]=INCRS(cur->hook->up,"NFirmsS",-1);
+      if(v[99]==0)
+        INTERACTS(cur, "Killing last sFirm", v[0]);
       v[5]=VS(cur,"Age");
       if(V("ExitFlag")==1 )
         INTERACTS(cur,"Dying", v[7]);
@@ -9495,7 +9497,8 @@ v[10]=t;
 //sprintf(msg, "\n Trade(%g)", v[10]); plog(msg);
 
 V("CheckLaborClass");
-
+//if(t==10)
+//INTERACT("WASTE", v[10]);
 
 v[40]=0;
 CYCLE(cur1, "Supply")
