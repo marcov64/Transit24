@@ -8891,7 +8891,7 @@ CYCLE_SAFE(cur, "Firm")
  {
   v[6]=VS(cur,"Waiting");
   v[16]=VS(cur,"Age");
-  v[50] = VS(cur, "DesiredQ");
+  v[50] = VS(cur, "MsSector");
   if(v[16]>v[18]) //don't kill too young firms
    {
     v[2]=VS(cur->hook,"minHealth");
@@ -8906,7 +8906,7 @@ CYCLE_SAFE(cur, "Firm")
     v[27] = VS(cur, "CashF");
     v[28] = VS(cur, "KAge"); //is in K, but it is relevant only of there is 1 single K and it is too old
     v[29] = V("CapitalLife");
-    if((VS(cur->hook->up,"NFirmsS")>2) && ((v[17]<v[19] && v[27]<0)||v[28]>v[29]||v[50]==0) )
+    if((VS(cur->hook->up,"NFirmsS")>2) && ((v[17]<v[19] && v[27]<0)||v[28]>v[29]||v[50]<0.01) )
      {
       if(v[50]==0 && V("ExitFlag")==1)
         INTERACTS(cur, "Exit: DesiredQ", v[50]);
