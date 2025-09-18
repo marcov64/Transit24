@@ -410,6 +410,10 @@ Label Root
 					Param: appRE
 					Param: RatioExpCash
 					Var: ReliableIncome
+					Param: WageIncomeFailedFirm
+					Param: PremiaFailedFirm
+					Param: WageIncomeRemovedClass
+					Param: PremiaRemovedClass
 
 				}
 
@@ -1962,6 +1966,10 @@ Var: GovDemHH 1 n + n n	10000	10000	10000	10000	10000	10000	10000	10000	10000	10
 Param: appRE 0 n + n n	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
 Param: RatioExpCash 0 n + n n	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
 Var: ReliableIncome 1 n + n n	100	100	100	100	100	100	100	100	100	100	100	100	100	100	100	100	100	100
+Param: WageIncomeFailedFirm 0 n + n n	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
+Param: PremiaFailedFirm 0 n + n n	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
+Param: WageIncomeRemovedClass 0 n + n n	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
+Param: PremiaRemovedClass 0 n + n n	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
 
 Object: Need C	10	10	10	10	10	10	10	10	10	10	10	10	10	10	10	10	10	10
 Param: IdNeed 0 n + n n	1	2	3	4	5	6	7	8	9	10	1	2	3	4	5	6	7	8	9	10	1	2	3	4	5	6	7	8	9	10	1	2	3	4	5	6	7	8	9	10	1	2	3	4	5	6	7	8	9	10	1	2	3	4	5	6	7	8	9	10	1	2	3	4	5	6	7	8	9	10	1	2	3	4	5	6	7	8	9	10	1	2	3	4	5	6	7	8	9	10	1	2	3	4	5	6	7	8	9	10	1	2	3	4	5	6	7	8	9	10	1	2	3	4	5	6	7	8	9	10	1	2	3	4	5	6	7	8	9	10	1	2	3	4	5	6	7	8	9	10	1	2	3	4	5	6	7	8	9	10	1	2	3	4	5	6	7	8	9	10	1	2	3	4	5	6	7	8	9	10	1	2	3	4	5	6	7	8	9	10
@@ -2472,7 +2480,7 @@ Param: IdEF 0 n + n n	1
 Var: PricePPDoped 0 n + n n
 
 SIM_NUM 1
-SEED 1
+SEED 2
 MAX_STEP 10000 0 0 0 0 0 1 0
 EQUATION fun_ExitDemEnd.cpp
 MODELREPORT report_entry1.html
@@ -5191,6 +5199,30 @@ _INIT_
 All 18 instances equal to 100
 END_DESCRIPTION
 
+Parameter_WageIncomeFailedFirm
+
+_INIT_
+All 18 instances equal to 0
+END_DESCRIPTION
+
+Parameter_PremiaFailedFirm
+
+_INIT_
+All 18 instances equal to 0
+END_DESCRIPTION
+
+Parameter_WageIncomeRemovedClass
+
+_INIT_
+All 18 instances equal to 0
+END_DESCRIPTION
+
+Parameter_PremiaRemovedClass
+
+_INIT_
+All 18 instances equal to 0
+END_DESCRIPTION
+
 Object_Need
 
 END_DESCRIPTION
@@ -7336,7 +7368,6 @@ v[5]=v[4]-v[3]-v[2]-v[1]-v[0]-v[6];
 if( t>1 && v[4]!=0&& abs(v[5]/v[4])>0.00001)
 	INTERACT("Err. CheckCapitalStock", v[5]);
 RESULT(v[5] )
-
 
 EQUATION("MegaCheckGov")
 /*
@@ -15436,8 +15467,11 @@ if(v[1]>0 && v[4]>=0 )
  }
 
 v[6]=VL("InvestmentDecision",1);
-if(v[6]==1 & v[10]==0)
-	v[10]=2;
+if(v[6]==1 && v[10]==0)
+	{
+	 v[10]=2;
+//	 INTERACT("WHY?", v[10]);
+	} 
 
 RESULT( v[10])
 
@@ -16177,7 +16211,13 @@ V("ControlPremiaIncome");
 V("ControlLaborCost");
 V("ClearExitRecord");
 V("MegaCheckF");
-
+//V("GlobalFlows"); CANNOT work, causes a deadlock
+cur5=SEARCHS(p->up, "Demand");
+CYCLES(cur5, cur6, "Class")
+ {
+ WRITES(cur6, "WageIncomeFailedFirm", 0);
+ WRITES(cur6, "PremiaFailedFirm", 0);
+ }
 WRITE("RemovedOverDraftF", 0);
 WRITE("RemovedAssetsF", 0);
 WRITE("RemovedDepositsF", 0);
@@ -16253,22 +16293,14 @@ CYCLE_SAFE(cur, "Firm")
       INCRS(cur->hook->up,"numExit",1);
       v[20]=v[21]=0;
       cur1 = SEARCHS(cur, "Engineers");
+      INCRS(cur1->hook->up, "WageIncomeFailedFirm", VS(cur, "RdExpenditure") );
       DELETE(cur1->hook);
-      /*
-      CYCLE_SAFES(cur1, cur2, "LabClass")
-      {
-      	if(cur2->hook==cur1)
-      	  {
-      	   DELETE(cur2);
-      	   break;
-      	  } 
-      }
-      */
       CYCLES(cur, cur1, "Labor")
       {
+      	INCRS(cur1->hook->up, "WageIncomeFailedFirm", VS(cur1, "NumWorkers")*VS(cur1, "wage"));
+      	INCRS(cur1->hook->up, "PremiaFailedFirm", VS(cur1, "Premia"));
       	DELETE(cur1->hook);
       }
-      
       CYCLES(cur, cur1, "Capital")
       {
       	v[20]+=VS(cur1, "PrincipalF");
@@ -16293,6 +16325,7 @@ WRITE("RemovedOverDraftF", v[40]);
 WRITE("RemovedAssetsF", v[41]);
 WRITE("RemovedDepositsF", v[42]);
 WRITES(cur5,"NPLF",v[4]);
+cur5 = SEARCHS(p->up,"Demand");
 RESULT(v[4] )
 
 
@@ -16657,6 +16690,8 @@ CYCLES(cur1, cur, "KFirm")
     if(v[3]==0 && VS(cur2,"IdKLabor")!=1)
      {
      //INTERACTS(cur2, "Removed KLabor", v[4]);
+      INCRS(cur2->hook->up, "WageIncomeRemovedClass", VS(cur2, "KNbrWorkers")*VS(cur2, "KWage"));
+      INCRS(cur2->hook->up, "PremiaRemovedClass", VS(cur2, "KPremia"));      
       if(SEARCHS(cur2->hook->up, "LabClass")==cur2->hook)
        {cur2->hook->hook=NULL;
         WRITES(cur2->hook, "LCType", 0);
@@ -17490,7 +17525,11 @@ if(v[14]==1)
 
 
   v[30] = V("ExtraCapacity");
-  v[8]=V("CapitalCapacity")*v[30];
+  if(V("Waiting")==1)
+   v[31] = V("KapitalNeed");
+  else
+   v[31]=0; 
+  v[8]=(V("CapitalCapacity")+v[31])*v[30];
   v[9]=min(v[1],v[8]);
   v[4]=V("DesiredUnusedCapacity");
   v[3]=v[4]*(v[9]/v[2]);
@@ -17525,8 +17564,22 @@ if(v[6]/v[0]-1 > V("NumWorkersMaxGr") && v[6]>5 )
     v[54]=0;
    }
   WRITES(p->up,"RatioVacancies",v[54]);
+  if(v[6]/V("nu")>1 && NEXT==NULL)
+   {
+    //need to create the next type of workers
+    cur1=ADDOBJ_EXS(p->up,"Labor",p);
+    WRITES(cur1,"IdLabor",2);
+    v[20]=v[6]/v[17];
+    WRITELS(cur1,"NumWorkers",0, t-1);
+    WRITELS(cur1,"wage",0, t-1);
+    cur3=SEARCH_CND("NumClass",2);
+      
+      cur5 = ADDOBJS(cur3, "LabClass");
+      cur1->hook=cur5;
+      cur5->hook=cur1;
+      WRITES(cur5, "LCType", 1);    
+   }
  }
-
 else
  {// when above the first tier workers...
   v[18]=V("IdLabor");
@@ -17662,6 +17715,18 @@ else
    v[6]=0;
  }
 
+v[1]=V("nu");
+
+if(v[6]/v[1]>1)
+ {
+  if(NEXT==NULL)
+   {
+    INTERACT("Shit NumWorkers", v[6]);
+   }
+ }
+
+//if(v[6]==0)
+ //INTERACT("Zero workers", v[6]);
 
 RESULT(v[6] )
 
@@ -17967,6 +18032,9 @@ EQUATION("WageIncome")
 Sum of all wages by workers in the consumer class
 */
 v[0]=0;
+WRITE("WageIncomeRemovedClass", 0);
+WRITE("PremiaRemovedClass", 0);
+
 CYCLE(cur, "LabClass")
 {
   v[1] = VS(cur, "LCType");
@@ -22159,16 +22227,17 @@ CYCLE(cur, "Class")
 {
 	v[25] = VS(cur, "appCtrlWage");
 	v[26] = VS(cur, "WageIncome");
-	/*
-	if(abs(v[25]-v[26])>10)
-	 INTERACTS(cur,"CtrlWage", v[25]-v[26]);
-	*/
+	v[31] = VS(cur, "WageIncomeFailedFirm");
+	if(abs(v[25]+v[31]-v[26])>10)
+	 INTERACTS(cur,"CtrlWage", v[25]+v[31]-v[26]);
+	
 	v[27] = VS(cur, "PremiaIncome");
 	v[28] = VS(cur, "appCtrlPremia");
-	/*
-	if(abs(v[28]-v[27])>10)
+	v[32] = VS(cur, "PremiaRemovedClass");
+	v[33] = VS(cur, "PremiaFailedFirm");
+	if(abs(v[28]+v[32]+v[33]-v[27])>10)
 	 INTERACTS(cur,"CtrlPremia", v[28]-v[27]);
-  */
+  
 	v[29]+=v[25]-v[26];
 	v[30]+=v[28]-v[27];
 	if(v[40]==0 && abs(v[25]-v[26])>10)

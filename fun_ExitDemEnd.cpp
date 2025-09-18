@@ -5843,7 +5843,10 @@ CYCLE(cur, "Labor")
 }
 v[2]=V("WagePrem");
 v[3]=v[1]-v[2];
-if(v[3]>0.001 || v[3]<-0.001) // avoid approximation issue
+v[4]=max(v[1],v[2]);
+if(v[4]==0)
+ END_EQUATION(0)
+if(abs(v[3]/v[4])>0.00001) // avoid approximation issue
 	INTERACT("ControlPremia",v[3]);
 RESULT(v[3] )
 
@@ -6033,13 +6036,13 @@ CYCLES(THIS->up, cur, "EnergyFirm")
 v[48]=v[40]+v[42]+v[44]+v[46];
 v[49]=v[41]+v[43]+v[45]+v[47];
 
-if(abs(v[1]-v[48])>10)
- INTERACT("WRONG DEPOSITS", v[41]-v[48]);
+if(abs(v[1]-v[48])/v[1]>0.00001)
+ INTERACT("WRONG DEPOSITS", v[1]-v[48]);
 
 v[20] = V("GovernmentFund");
 //v[21] = V("NonPerformingLoansTotal");
 v[21]=0;
-if(abs(v[0]+v[20]-v[49]-v[21])>10)
+if(abs(v[0]+v[20]-v[49]-v[21])/v[0]>0.00001)
  INTERACT("WRONG assets", v[0]+v[20]-v[49]-v[21]);
 
 RESULT(v[3] )
@@ -8939,7 +8942,13 @@ V("ControlPremiaIncome");
 V("ControlLaborCost");
 V("ClearExitRecord");
 V("MegaCheckF");
-
+//V("GlobalFlows"); CANNOT work, causes a deadlock
+cur5=SEARCHS(p->up, "Demand");
+CYCLES(cur5, cur6, "Class")
+ {
+ WRITES(cur6, "WageIncomeFailedFirm", 0);
+ WRITES(cur6, "PremiaFailedFirm", 0);
+ }
 WRITE("RemovedOverDraftF", 0);
 WRITE("RemovedAssetsF", 0);
 WRITE("RemovedDepositsF", 0);
@@ -9015,22 +9024,14 @@ CYCLE_SAFE(cur, "Firm")
       INCRS(cur->hook->up,"numExit",1);
       v[20]=v[21]=0;
       cur1 = SEARCHS(cur, "Engineers");
+      INCRS(cur1->hook->up, "WageIncomeFailedFirm", VS(cur, "RdExpenditure") );
       DELETE(cur1->hook);
-      /*
-      CYCLE_SAFES(cur1, cur2, "LabClass")
-      {
-      	if(cur2->hook==cur1)
-      	  {
-      	   DELETE(cur2);
-      	   break;
-      	  } 
-      }
-      */
       CYCLES(cur, cur1, "Labor")
       {
+      	INCRS(cur1->hook->up, "WageIncomeFailedFirm", VS(cur1, "NumWorkers")*VS(cur1, "wage"));
+      	INCRS(cur1->hook->up, "PremiaFailedFirm", VS(cur1, "Premia"));
       	DELETE(cur1->hook);
       }
-      
       CYCLES(cur, cur1, "Capital")
       {
       	v[20]+=VS(cur1, "PrincipalF");
@@ -9055,6 +9056,7 @@ WRITE("RemovedOverDraftF", v[40]);
 WRITE("RemovedAssetsF", v[41]);
 WRITE("RemovedDepositsF", v[42]);
 WRITES(cur5,"NPLF",v[4]);
+cur5 = SEARCHS(p->up,"Demand");
 RESULT(v[4] )
 
 
@@ -9419,6 +9421,8 @@ CYCLES(cur1, cur, "KFirm")
     if(v[3]==0 && VS(cur2,"IdKLabor")!=1)
      {
      //INTERACTS(cur2, "Removed KLabor", v[4]);
+      INCRS(cur2->hook->up, "WageIncomeRemovedClass", VS(cur2, "KNbrWorkers")*VS(cur2, "KWage"));
+      INCRS(cur2->hook->up, "PremiaRemovedClass", VS(cur2, "KPremia"));      
       if(SEARCHS(cur2->hook->up, "LabClass")==cur2->hook)
        {cur2->hook->hook=NULL;
         WRITES(cur2->hook, "LCType", 0);
@@ -10452,6 +10456,8 @@ if(v[6]/v[1]>1)
    }
  }
 
+//if(v[6]==0)
+ //INTERACT("Zero workers", v[6]);
 
 RESULT(v[6] )
 
@@ -10757,6 +10763,9 @@ EQUATION("WageIncome")
 Sum of all wages by workers in the consumer class
 */
 v[0]=0;
+WRITE("WageIncomeRemovedClass", 0);
+WRITE("PremiaRemovedClass", 0);
+
 CYCLE(cur, "LabClass")
 {
   v[1] = VS(cur, "LCType");
@@ -14949,16 +14958,17 @@ CYCLE(cur, "Class")
 {
 	v[25] = VS(cur, "appCtrlWage");
 	v[26] = VS(cur, "WageIncome");
-	/*
-	if(abs(v[25]-v[26])>10)
-	 INTERACTS(cur,"CtrlWage", v[25]-v[26]);
-	*/
+	v[31] = VS(cur, "WageIncomeFailedFirm");
+	if(abs(v[25]+v[31]-v[26])>10)
+	 INTERACTS(cur,"CtrlWage", v[25]+v[31]-v[26]);
+	
 	v[27] = VS(cur, "PremiaIncome");
 	v[28] = VS(cur, "appCtrlPremia");
-	/*
-	if(abs(v[28]-v[27])>10)
+	v[32] = VS(cur, "PremiaRemovedClass");
+	v[33] = VS(cur, "PremiaFailedFirm");
+	if(abs(v[28]+v[32]+v[33]-v[27])>10)
 	 INTERACTS(cur,"CtrlPremia", v[28]-v[27]);
-  */
+  
 	v[29]+=v[25]-v[26];
 	v[30]+=v[28]-v[27];
 	if(v[40]==0 && abs(v[25]-v[26])>10)
