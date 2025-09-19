@@ -3554,6 +3554,8 @@ v[2] = V("KExpenditures");
 v[1] = V("TimeRepayment");
 
 v[4]=min(v[0],v[2]/v[1]);
+if(v[0]>0 && abs(v[4]-v[0])/v[0]<0.0001)
+ v[4]=v[0];
 RESULT(v[4] )
 
 EQUATION("InstallmentEF")
@@ -3666,13 +3668,16 @@ v[2] = V("CapitalPaymentF");
 v[3] = v[0]+v[1]-v[2];
 
 v[10]=0;
+v[20]=0;
 CYCLE(cur, "Capital")
 {
 	v[10]+=VS(cur, "PrincipalF");
+	v[20]+=VS(cur, "KExpenditures");
 }
-v[11]=max(abs(v[3]),abs(v[10]));
-if(v[11]>10 && abs(v[10]-v[3])/v[11]>0.000001)
+if(abs(v[10]-v[3])/v[20]>0.000001)
  INTERACT("Outstanding debt mismatch", v[3]-v[10]);
+if(v[3]<0.0001)
+ v[3]=0;
 RESULT(v[3] )
 
 EQUATION("OutstandingDebtEF")
@@ -5477,7 +5482,8 @@ v[20]=v[0]-v[1]-v[2]-v[4]-v[7]+v[8]-(v[12]-v[13])-v[14]-v[15]+v[16]+v[21]; // ad
 
 //v[20]=v[0]-v[1]-v[2]-v[4]-v[7]+v[8]-(v[12]-v[13])-v[14]-v[15]+v[16];
 
-if( (v[0]>0 && abs(v[20])/v[0]>0.0000001) || (v[0]<=0 && abs(v[20])>1) )
+v[30]=max(v[0],v[2]);
+if( v[30]>0 && abs(v[20])/v[30]>0.0000001) 
 	INTERACT("KFirmControlCurrent",v[20]);
 RESULT(v[20] )
 
@@ -9030,7 +9036,13 @@ CYCLE_SAFE(cur, "Firm")
       {
       	INCRS(cur1->hook->up, "WageIncomeFailedFirm", VS(cur1, "NumWorkers")*VS(cur1, "wage"));
       	INCRS(cur1->hook->up, "PremiaFailedFirm", VS(cur1, "Premia"));
-      	DELETE(cur1->hook);
+      	cur2=SEARCHS(cur1->hook->up, "LabClass");
+      	if(cur2==cur1->hook)
+      	 {cur1->hook->hook=NULL;
+      	  WRITES(cur1->hook, "LCType", 0);
+      	 }
+      	else   
+       	DELETE(cur1->hook);
       }
       CYCLES(cur, cur1, "Capital")
       {
@@ -14959,19 +14971,19 @@ CYCLE(cur, "Class")
 	v[25] = VS(cur, "appCtrlWage");
 	v[26] = VS(cur, "WageIncome");
 	v[31] = VS(cur, "WageIncomeFailedFirm");
-	if(abs(v[25]+v[31]-v[26])>10)
+	if(abs(v[25]+v[31]-v[26])/v[26]>0.00001)
 	 INTERACTS(cur,"CtrlWage", v[25]+v[31]-v[26]);
 	
 	v[27] = VS(cur, "PremiaIncome");
 	v[28] = VS(cur, "appCtrlPremia");
 	v[32] = VS(cur, "PremiaRemovedClass");
 	v[33] = VS(cur, "PremiaFailedFirm");
-	if(abs(v[28]+v[32]+v[33]-v[27])>10)
+	if(v[27]>0 && abs(v[28]+v[32]+v[33]-v[27])/v[27]>0.0001)
 	 INTERACTS(cur,"CtrlPremia", v[28]-v[27]);
   
 	v[29]+=v[25]-v[26];
 	v[30]+=v[28]-v[27];
-	if(v[40]==0 && abs(v[25]-v[26])>10)
+	if(v[40]==0 && abs(v[25]-v[26])/max(v[25],v[26])>0.0001)
 	 INTERACTS(cur, "Wrong CtrlWage", v[25]-v[26]);
 }
 
